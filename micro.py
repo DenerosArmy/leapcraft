@@ -60,38 +60,42 @@ class Listener(Leap.Listener):
         pos = Leap.Vector(self.avgx, self.avgy, 0)
         if len(hands) > 0:
             hand = hands[-1]
+
+            move_x = x(self.avgx)
+            move_y = y(self.avgy)
+            mouse.move(move_x, move_y)
+            print "Moving to %d, %d" % (move_x, move_y)
+
             fingers = hand.fingers()
             print "Frame id: %d, timestamp: %d, hands: %d" % (
                         frame.id(), frame.timestamp(), numHands)
 
             hand = hands[0]
 
+            palmRay = hand.palm()
+            if palmRay is not None:
+                print "Hand has palm position (%f, %f" % (
+                    pos.x, pos.y)
+                palm = palmRay.position
+                pos.x = palm.x
+                pos.y = palm.y
+
             numFingers = len(fingers)
-            if numFingers >= 1:
-                if numFingers == 1:
-                    mouse.toggle(True, mouse.LEFT_BUTTON)
-                else:
-                    mouse.toggle(True, mouse.RIGHT_BUTTON)
-                # Calculate the hand's average finger tip position
-                pos = Leap.Vector(0, 0, 0)
-                for finger in fingers:
-                    tip = finger.tip()
-                    pos.x += tip.position.x
-                    pos.y += tip.position.y
-                    pos.z += tip.position.z
-                pos = Leap.Vector(pos.x/numFingers, pos.y/numFingers, pos.z/numFingers)
-                print "Hand has %d fingers with average tip position (%f, %f" % (
-                        numFingers, pos.x, pos.y)
-                move_x = x(self.avgx)
-                move_y = y(self.avgy)
-                print "Moving to %d, %d" % (move_x, move_y)
-                mouse.move(move_x, move_y)
+            if numFingers == 1:
+                mouse.toggle(False, mouse.LEFT_BUTTON)
+                mouse.toggle(True, mouse.RIGHT_BUTTON)
+            elif numFingers == 2:
+                mouse.toggle(True, mouse.LEFT_BUTTON)
+                mouse.toggle(False, mouse.RIGHT_BUTTON)
+            else:
+                mouse.toggle(False, mouse.LEFT_BUTTON)
+                mouse.toggle(False, mouse.RIGHT_BUTTON)
         else:
             mouse.toggle(False, mouse.LEFT_BUTTON)
             mouse.toggle(False, mouse.RIGHT_BUTTON)
         self.avgx = self.avgx*0.7 + pos.x*0.3
         self.avgy = self.avgy*0.7 + pos.y*0.3
-        time.sleep(0.01)
+        time.sleep(0.001)
 
 
 
