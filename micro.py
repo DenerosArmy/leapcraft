@@ -4,11 +4,11 @@ import time
 import Leap
 from autopy import mouse
 
-MIN_X = -180
-MAX_X = 180
+MIN_X = -150
+MAX_X = 150
 XRANGE = MAX_X - MIN_X
 
-MIN_Y = 200
+MIN_Y = 220
 MAX_Y = 360
 YRANGE = MAX_Y - MIN_Y
 
@@ -16,20 +16,20 @@ screenx = 1440
 screeny = 900
 
 def x(val):
-    if val < -180:
+    if val < MIN_X:
         return 0
-    if val > 180:
+    if val > MAX_X:
         return 1439
     scale = screenx / XRANGE
-    return int(scale * (val + 180))
+    return int(scale * (val - MIN_X))
 
 def y(val):
-    if val < 200:
+    if val < MIN_Y:
         return 899
-    if val > 360:
+    if val > MAX_Y:
         return 0
     scale = screeny / YRANGE
-    return 900 - int(scale * (val - 200))
+    return 899 - int(scale * (val - MIN_Y))
 
 def low_pass_filter(vals):
     inc = 1/len(vals) * 2/len(vals)
@@ -42,8 +42,8 @@ def low_pass_filter(vals):
 class Listener(Leap.Listener):
 
     def onInit(self, controller):
-        self.avgx = [0 for i in xrange(10)]
-        self.avgy = [0 for i in xrange(10)]
+        self.avgx = 0
+        self.avgy = 0
         print "Initialized"
 
     def onConnect(self, controller):
@@ -57,6 +57,7 @@ class Listener(Leap.Listener):
         frame = controller.frame()
         hands = frame.hands()
         numHands = len(hands)
+        pos = Leap.Vector(self.avgx, self.avgy, 0)
         if len(hands) > 0:
             hand = hands[-1]
             fingers = hand.fingers()
@@ -68,9 +69,9 @@ class Listener(Leap.Listener):
             numFingers = len(fingers)
             if numFingers >= 1:
                 if numFingers == 1:
-                    mouse.toggle(False, mouse.LEFT_BUTTON)
-                else:
                     mouse.toggle(True, mouse.LEFT_BUTTON)
+                else:
+                    mouse.toggle(True, mouse.RIGHT_BUTTON)
                 # Calculate the hand's average finger tip position
                 pos = Leap.Vector(0, 0, 0)
                 for finger in fingers:
@@ -81,28 +82,16 @@ class Listener(Leap.Listener):
                 pos = Leap.Vector(pos.x/numFingers, pos.y/numFingers, pos.z/numFingers)
                 print "Hand has %d fingers with average tip position (%f, %f" % (
                         numFingers, pos.x, pos.y)
-                self.avgx.pop(0)
-                self.avgy.pop(0)
-                self.avgx.append(pos.x)
-                self.avgy.append(pos.y)
-                move_x = x(low_pass_filter(self.avgx))
-                move_y = y(low_pass_filter(self.avgy))
+                move_x = x(self.avgx)
+                move_y = y(self.avgy)
                 print "Moving to %d, %d" % (move_x, move_y)
                 mouse.move(move_x, move_y)
-                mouse.move(x(low_pass_filter(self.avgx)), y(low_pass_filter(self.avgy)))
-            else:
-                mouse.toggle(False, mouse.LEFT_BUTTON)
-                self.avgx.pop(0)
-                self.avgy.pop(0)
-                self.avgx.append(self.avgx[-1])
-                self.avgy.append(self.avgy[-1])
         else:
             mouse.toggle(False, mouse.LEFT_BUTTON)
-            self.avgx.pop(0)
-            self.avgy.pop(0)
-            self.avgx.append(self.avgx[-1])
-            self.avgy.append(self.avgy[-1])
-        time.sleep(0.001)
+            mouse.toggle(False, mouse.RIGHT_BUTTON)
+        self.avgx = self.avgx*0.7 + pos.x*0.3
+        self.avgy = self.avgy*0.7 + pos.y*0.3
+        time.sleep(0.01)
 
 
 
